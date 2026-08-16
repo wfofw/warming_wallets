@@ -12,7 +12,6 @@ async function start() {
     const fPKL = fs.readFileSync('./auxiliaryFiles/walletsForWork.txt', 'utf-8')
                                             .split('\n')
     fPKL.forEach((value) => {
-        // console.log(value.split(','))
         if (value.split(',').length == 2) {
             if (value.split(',')[1].length >= 64) {
                 if (privateKeyList.includes(value.split(',')[1])) {
@@ -70,9 +69,7 @@ async function start() {
                 'chainName': chain,
             },
             fromToken: fromTokenValue,
-            //fromTokenSymbol: chainIDList['optimism'].native.symbol,
             toToken: toTokenValue,
-            //toTokenSymbol: chainIDList['blast'].native.symbol,
             tokenContract: tokenContract
         };
 
@@ -219,5 +216,3 @@ async function start() {
         fs.writeFileSync('./auxiliaryFiles/walletsStatus.txt', dataToWrite, 'utf-8')
     }
 };
-
-//start();

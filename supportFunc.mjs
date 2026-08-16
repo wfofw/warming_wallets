@@ -15,12 +15,9 @@ export const chainIDList = {
         id: 137,
         tokens: {
             USDT: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
-            //USDC: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
             USDCe: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
             MATIC: ethers.ZeroAddress,
             WMATIC: '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
-            //UNI: '0xb33EaAd8d922B1083446DC23f610c2567fB5180f',
-            //FRAX: '0x45c32fA6DF82ead1e2EF74d17b76547EDdFaFF89',
         },
         native: {
             symbol: 'MATIC',
@@ -164,11 +161,9 @@ export async function checkForAllowance(wallet, tokenAddress, approvalAddress, a
 export async function getNativeTokenBalance(tokenContract, tokenAddress, provider, address) {
     if (tokenAddress == ethers.ZeroAddress) {
         const balance = await provider.getBalance(address);
-        //console.log(balance);
         return BigInt(balance);
     } else {
         const balance = await tokenContract.balanceOf(address);
-        //console.log(tokenAddress,' has ', balance);
         return BigInt(balance);
     }
 }
@@ -284,7 +279,6 @@ async function backAllTokenToNative() {
     const fPKL = fs.readFileSync('./auxiliaryFiles/walletsForWork.txt', 'utf-8')
                                             .split('\n')
     fPKL.forEach((value) => {
-        // console.log(value.split(','))
         if (value.split(',').length == 2) {
             if (value.split(',')[1].length == 66) {
                 if (privateKeyList.includes(value.split(',')[1])) {
@@ -322,12 +316,8 @@ async function backAllTokenToNative() {
         }
         if (i%(privateKeyList.length) == 0) {
             counter += privateKeyList.length;
-            //fs.writeFileSync('./readyWallets.txt', '');
             let data = walletsAndReturnsNew.join('\n');
             fs.writeFileSync('./auxiliaryFiles/readyWallets.txt', data);
-            /*walletsAndReturnsNew.forEach((pairSolid) => {
-                fs.writeFileSync('./readyWallets.txt', pairSolid+'\n', {flag:'a'});
-            });*/
             walletsAndReturnsOld = [];
             walletsAndReturnsNew = [];
             fs.readFileSync('./auxiliaryFiles/readyWallets.txt', 'utf-8').split('\n')
@@ -354,9 +344,7 @@ async function backAllTokenToNative() {
         }
         readyWalletsCounter = 0
         let backingRes = await backTokenToNative('blast', provider, wallet);
-        // let backingRes = 1;
         if (backingRes == 1) {
-            // console.log(walletsList);process.exit()
             if (walletsList.includes(wallet.address)) {
                 walletsAndReturnsOld.forEach((pair) => {
                     if (pair[0] == wallet.address) {
