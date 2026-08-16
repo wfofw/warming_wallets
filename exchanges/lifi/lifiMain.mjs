@@ -40,18 +40,5 @@ export async function lifiSwap(tokenAmount, fromChain, toChain, fromToken, toTok
         await writeError(error.stack);
     }
 
-    //console.log('Getting status..')
-    /*const getStatus = async (bridge, fromChain, toChain, txHash) => {
-        const result = await axios.get('https://li.quest/v1/status', {
-            params: {
-                bridge,
-                fromChain,
-                toChain,
-                txHash,
-            }
-        });
-        return result.data;
-    }
-    const status = await getStatus(quote.tool, fromChain, toChain, tx.hash);*/
     console.log('DONE');
 }

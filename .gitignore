@@ -1,5 +1,4 @@
-*.env
-checkDep.mjs
 node_modules
-walletsForWork.txt
-readyWallets.txt
+auxiliaryFiles/readyWallets.txt
+auxiliaryFiles/error.log
+auxiliaryFiles/walletsStatus.txt
