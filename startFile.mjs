@@ -20,6 +20,7 @@ async function start() {
     const uniqueKeys = [...new Set(privateKeyList)];
 
     console.log(`Loaded ${uniqueKeys.length} unique private key(s).`);
+
     for (let i = 0; i != iteractionAmount; i++) {
         const chain = lodash.sample(rpcList);
         const rpc = process.env[chain];
