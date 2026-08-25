@@ -3,34 +3,23 @@ import lodash from 'lodash';
 import fs from 'fs';
 import { configDotenv } from 'dotenv';
 configDotenv({ path: './data.env' });
+configDotenv({ path: './auxiliaryFiles/walletsForWork.env' });
 import { getNativeTokenBalance, makeAmount, chainIDList, waitDelay, backTokenToNative, abi } from './supportFunc.mjs'
 const rpcList = process.env.allRpc.split(',');
 
 async function start() {
     const iteractionAmount = 9000; //Transaction amount
-    let privateKeyList = [];
-    const fPKL = fs.readFileSync('./auxiliaryFiles/walletsForWork.txt', 'utf-8')
-                                            .split('\n')
-    fPKL.forEach((value) => {
-        // console.log(value.split(','))
-        if (value.split(',').length == 2) {
-            if (value.split(',')[1].length >= 64) {
-                if (privateKeyList.includes(value.split(',')[1])) {
-                    console.log('Duplicate!');
-                } else {
-                    privateKeyList.push(value.split(',')[1])
-                }
-            }
-        } else if (value.split(',').length == 1) {
-            if (value.split(',')[0].length >= 64) {
-                if (privateKeyList.includes(value.split(',')[0])) {
-                    console.log('Duplicate!');
-                } else {
-                    privateKeyList.push(value.split(',')[0])
-                }
-            }
-        }
-    })
+
+    const rawKeys = process.env.PRIVATE_KEYS || '';
+
+    const privateKeyList = rawKeys
+    .split('\n')
+    .map(key => key.trim())
+    .filter(key => key.length >= 64);
+
+    const uniqueKeys = [...new Set(privateKeyList)];
+
+    console.log(`Loaded ${uniqueKeys.length} unique private key(s).`);
     for (let i = 0; i != iteractionAmount; i++) {
         const chain = lodash.sample(rpcList);
         const rpc = process.env[chain];
@@ -70,9 +59,7 @@ async function start() {
                 'chainName': chain,
             },
             fromToken: fromTokenValue,
-            //fromTokenSymbol: chainIDList['optimism'].native.symbol,
             toToken: toTokenValue,
-            //toTokenSymbol: chainIDList['blast'].native.symbol,
             tokenContract: tokenContract
         };
 
@@ -167,24 +154,28 @@ async function start() {
                 if (walletStatData[i][0] == wallet.address) {
                     if (Number(walletStatData[i][4]) == 1) {
                         console.log('Wallet ready!');
-                        continue;
+                        break;
                     } else if (Number(walletStatData[i][2]) == 1) {
                         backRes = await backTokenToNative(chain, provider, wallet);
                         if (backRes == 3) {
                             walletStatus = 1;
                         }
                         console.log('Backing done!');
-                        backToNative=1
+                        backToNative=1;
+                        break;
                     } else if (Number(walletStatData[i][1]) == 0) {
                         await waitDelay(timeDelay, swapParametrs, wallet, provider);
                         console.log('Swap done!');
                         counter++;
+                        break;
                     } else if (Number(walletStatData[i][1])%amountOfSwaps == 0) {
                         backToNative = 1;
+                        break;
                     } else {
                         await waitDelay(timeDelay, swapParametrs, wallet, provider);
                         console.log('Swap done!');
                         counter=Number(walletStatData[i][1])+1;
+                        break;
                     }
                 } else {
                     continue;
@@ -219,5 +210,3 @@ async function start() {
         fs.writeFileSync('./auxiliaryFiles/walletsStatus.txt', dataToWrite, 'utf-8')
     }
 };
-
-//start();

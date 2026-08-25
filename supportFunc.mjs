@@ -4,9 +4,9 @@ import { round } from 'mathjs';
 import fs from 'fs';
 import { configDotenv } from 'dotenv';
 configDotenv({ path: './data.env' });
+configDotenv({ path: './auxiliaryFiles/walletsForWork.env' });
+configDotenv({ path: './auxiliaryFiles/readyWallets.env' });
 import { bebopSwap } from './exchanges/bebop/bebopMain.mjs';
-import { relaySwap } from './exchanges/relay/relayMain.mjs';
-import { lifiSwap } from './exchanges/lifi/lifiMain.mjs';
 
 const rpcList = process.env.allRpc.split(',');
 
@@ -15,12 +15,9 @@ export const chainIDList = {
         id: 137,
         tokens: {
             USDT: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
-            //USDC: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
             USDCe: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
             MATIC: ethers.ZeroAddress,
             WMATIC: '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
-            //UNI: '0xb33EaAd8d922B1083446DC23f610c2567fB5180f',
-            //FRAX: '0x45c32fA6DF82ead1e2EF74d17b76547EDdFaFF89',
         },
         native: {
             symbol: 'MATIC',
@@ -89,46 +86,21 @@ export async function writeError(errorStack) {
 }
 
 export async function waitForConfirm(hash, provider) {
-    const currentBlockNum = await provider.getBlockNumber();
-    let waitForCreation = true;
-    let waitForInclude = true;
-    let waitForConfirmation = true;
     try {
-        while(waitForCreation) {
-        let blockNum = await provider.getBlockNumber();
-        console.log('Start:', currentBlockNum, '----blockNum:', blockNum);
-        if ((blockNum-currentBlockNum)>=100) {
-            console.log('to much blocks without tx')
+        console.log(`Waiting for tx receipt: ${hash}`);
+        // We are waiting for inclusion in the block and 23 confirmations (or transmit the required number)
+        const receipt = await provider.waitForTransaction(hash, 23, 60000); // 60 sec timeout
+        
+        if (receipt && receipt.status === 1) {
+            console.log('Tx confirmed successfully!');
+            return 1;
+        } else {
+            console.log('Tx failed or dropped');
             return 0;
         }
-        let res = await provider.getTransaction(hash);
-        if (res != null) {
-            waitForCreation = false;
-        }
-        console.log('Tx data:', res);
-        };
-
-        while(waitForInclude) {
-            let receipt = await provider.getTransactionReceipt(hash);
-            console.log('waitForInclude', receipt);
-            if (receipt != null) {
-                while(waitForConfirmation) {
-                    let receipt = await provider.getTransactionReceipt(hash);
-                    if (receipt == null) {
-                        continue;
-                    }
-                    let confirmations = await receipt.confirmations();
-                    console.log(confirmations);
-                    if (confirmations >= 23) {
-                        waitForConfirmation = false;
-                        waitForInclude = false;
-                        return 1;
-                    }
-                }
-            }
-        }
-    } catch(error) {
+    } catch (error) {
         await writeError(error.stack);
+        return 0;
     }
 }
 
@@ -164,11 +136,9 @@ export async function checkForAllowance(wallet, tokenAddress, approvalAddress, a
 export async function getNativeTokenBalance(tokenContract, tokenAddress, provider, address) {
     if (tokenAddress == ethers.ZeroAddress) {
         const balance = await provider.getBalance(address);
-        //console.log(balance);
         return BigInt(balance);
     } else {
         const balance = await tokenContract.balanceOf(address);
-        //console.log(tokenAddress,' has ', balance);
         return BigInt(balance);
     }
 }
@@ -249,134 +219,148 @@ export async function backTokenToNative(chain, provider, wallet) {
 }
 
 export async function makeAmount(balance, contract) {
-    let finalAmount;
     const tokenAddress = await contract.getAddress();
-    const percentage = round(lodash.random(0.02, 0.99), 2);
-    const balcWithPrcnt = BigInt(lodash.floor(balance*percentage));
-    if (tokenAddress == ethers.ZeroAddress || tokenAddress == '0x4300000000000000000000000000000000000004') {
-        finalAmount = Number(balcWithPrcnt)/10**18;
-        if (balance < 0.0094885*10**18) {
-            return 0;
-        }
-        if (finalAmount < 0.0094885) {
-            return makeAmount(balance, contract);
-        } else {
+    
+    // Checking limits for ETH / WETH
+    if (tokenAddress === ethers.ZeroAddress || tokenAddress === '0x4300000000000000000000000000000000000004') {
+        if (balance < 0.0094885 * 10**18) return 0;
+
+        let balcWithPrcnt;
+        let finalAmount;
+        do {
+            const percentage = round(lodash.random(0.02, 0.99), 2);
+            balcWithPrcnt = BigInt(lodash.floor(balance * percentage));
+            finalAmount = Number(balcWithPrcnt) / 10**18;
+        } while (finalAmount < 0.0094885);
+
+        return balcWithPrcnt;
+    } 
+    
+    // Checking limits for USDB
+    else {
+        const decimals = await contract.decimals();
+        if (tokenAddress === '0x4300000000000000000000000000000000000003') {
+            const minBalance = 24.2718446602 * 10**Number(decimals);
+            if (balance < minBalance) return 0;
+
+            let balcWithPrcnt;
+            let finalAmount;
+            do {
+                const percentage = round(lodash.random(0.02, 0.99), 2);
+                balcWithPrcnt = BigInt(lodash.floor(balance * percentage));
+                finalAmount = Number(balcWithPrcnt) / 10**Number(decimals);
+            } while (finalAmount < 24.2718446602);
+
             return balcWithPrcnt;
         }
-    } else {
-        const decimals = await contract.decimals();
-        if (tokenAddress == '0x4300000000000000000000000000000000000003') {
-            if (balance < 24.2718446602*10**Number(decimals)) {
-                return 0
-            }
-            finalAmount = Number(balcWithPrcnt)/10**Number(decimals);
-            if (finalAmount < 24.2718446602) {
-                return makeAmount(balance, contract);
-            } else {
-                return balcWithPrcnt;
-            }
-        }
     }
+    return BigInt(0);
 }
 
 async function backAllTokenToNative() {
-    let privateKeyList = [];
-    const fPKL = fs.readFileSync('./auxiliaryFiles/walletsForWork.txt', 'utf-8')
-                                            .split('\n')
-    fPKL.forEach((value) => {
-        // console.log(value.split(','))
-        if (value.split(',').length == 2) {
-            if (value.split(',')[1].length == 66) {
-                if (privateKeyList.includes(value.split(',')[1])) {
-                    console.log('Duplicate!');
-                } else {
-                    privateKeyList.push(value.split(',')[1])
-                }
-            }
-        } else if (value.split(',').length == 1) {
-            if (value.split(',')[0].length == 66) {
-                if (privateKeyList.includes(value.split(',')[0])) {
-                    console.log('Duplicate!');
-                } else {
-                    privateKeyList.push(value.split(',')[0])
-                }
-            }
-        }
-    })
+    // 1. Parsing private keys
+    const rawKeys = process.env.PRIVATE_KEYS || '';
+    const privateKeyList = rawKeys
+        .split('\n')
+        .map(key => key.trim())
+        .filter(key => key.length >= 64);
+
+    const uniqueKeys = [...new Set(privateKeyList)];
+    console.log(`Loaded ${uniqueKeys.length} unique private key(s).`);
+
     const chain = lodash.sample(rpcList);
     const rpc = process.env[chain];
     const provider = new ethers.JsonRpcProvider(rpc);
-    let walletsAndReturnsOld = [];
-    let walletsAndReturnsNew = [];
-    fs.readFileSync('./auxiliaryFiles/readyWallets.txt', 'utf-8').split('\n')
-                                                .forEach((pair) => {
-                                                    walletsAndReturnsOld.push(pair.split(':'))
-                                                });
-    let walletsList = walletsAndReturnsOld.map(pairList => pairList[0]);
-    let counter = 0-privateKeyList.length;
+
+    // 2. Parsing ready-made wallets from the READY_WALLETS environment variable
+    const rawReadyWallets = process.env.READY_WALLETS || '';
+    let walletsAndReturns = rawReadyWallets
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(line => line.split(':'));
+
+    let walletsList = walletsAndReturns.map(pair => pair[0]);
+    let counter = 0 - uniqueKeys.length;
     let readyWalletsCounter = 0;
-    for (let i = 0; i < privateKeyList.length*(Object.keys(chainIDList[chain].tokens).length-1); i++) {
-        if (readyWalletsCounter == privateKeyList.length) {
+
+    const totalTokensCount = Object.keys(chainIDList[chain].tokens).length - 1;
+    const totalIterations = uniqueKeys.length * totalTokensCount;
+
+    for (let i = 0; i < totalIterations; i++) {
+        if (readyWalletsCounter === uniqueKeys.length) {
             console.log('All wallets ready!');
             break;
         }
-        if (i%(privateKeyList.length) == 0) {
-            counter += privateKeyList.length;
-            //fs.writeFileSync('./readyWallets.txt', '');
-            let data = walletsAndReturnsNew.join('\n');
-            fs.writeFileSync('./auxiliaryFiles/readyWallets.txt', data);
-            /*walletsAndReturnsNew.forEach((pairSolid) => {
-                fs.writeFileSync('./readyWallets.txt', pairSolid+'\n', {flag:'a'});
-            });*/
-            walletsAndReturnsOld = [];
-            walletsAndReturnsNew = [];
-            fs.readFileSync('./auxiliaryFiles/readyWallets.txt', 'utf-8').split('\n')
-                                                .forEach((pair) => {
-                                                    walletsAndReturnsOld.push(pair.split(':'))
-                                                });
-            walletsList = walletsAndReturnsOld.map(pairList => pairList[0]);
+
+        // 3. Synchronize the state with the readyWallets.env file once per cycle (batch)
+        if (i % uniqueKeys.length === 0) {
+            counter += uniqueKeys.length;
+
+            const formattedPairs = walletsAndReturns.map(pair => pair.join(':')).join('\n');
+            const envContent = `# Auto-updated ready wallets\nREADY_WALLETS="\n${formattedPairs}\n"`;
+
+            fs.writeFileSync(readyWalletsEnvPath, envContent);
+            walletsList = walletsAndReturns.map(pair => pair[0]);
         }
-        const wallet = new ethers.Wallet(privateKeyList[i-counter], provider);
+
+        const currentKey = uniqueKeys[i - counter];
+        const wallet = new ethers.Wallet(currentKey, provider);
+
         console.log('-------------------------------------------------------');
         console.log('Wallet:', wallet.address);
+
         let iterSkip = 0;
-        walletsAndReturnsOld.forEach((pair) => {
-            if (pair[0] == wallet.address) {
-                if (pair[1] == 'allDone') {
+        walletsAndReturns.forEach((pair) => {
+            if (pair[0] === wallet.address) {
+                if (pair[1] === 'allDone') {
                     console.log('Wallet also ready');
                     readyWalletsCounter++;
                     iterSkip = 1;
                 }
             }
-        })
-        if (iterSkip == 1) {
+        });
+
+        if (iterSkip === 1) {
             continue;
         }
-        readyWalletsCounter = 0
+
+        readyWalletsCounter = 0;
         let backingRes = await backTokenToNative('blast', provider, wallet);
-        // let backingRes = 1;
-        if (backingRes == 1) {
-            // console.log(walletsList);process.exit()
-            if (walletsList.includes(wallet.address)) {
-                walletsAndReturnsOld.forEach((pair) => {
-                    if (pair[0] == wallet.address) {
-                        if (Number(pair[1]) < (Object.keys(chainIDList[chain].tokens)).length-1) {
-                            walletsAndReturnsNew.push(`${wallet.address}:${Number(pair[1])+1}`);
-                        } else if (Number(pair[1])+1 >= (Object.keys(chainIDList[chain].tokens)).length-1) {
-                            walletsAndReturnsNew.push(`${wallet.address}:allDone`);
-                        } else {
-                            console.log(`All token returned to native!\nWallet ready:${wallet.address}`);
-                        }
+
+        // 4. Updating wallet status directly in the memory array
+        const existingPairIndex = walletsAndReturns.findIndex(pair => pair[0] === wallet.address);
+
+        if (backingRes === 1) {
+            if (existingPairIndex !== -1) {
+                const currentStatus = walletsAndReturns[existingPairIndex][1];
+                const currentNum = Number(currentStatus);
+
+                if (!isNaN(currentNum)) {
+                    if (currentNum < totalTokensCount) {
+                        walletsAndReturns[existingPairIndex][1] = String(currentNum + 1);
+                    } else {
+                        walletsAndReturns[existingPairIndex][1] = 'allDone';
+                        console.log(`All token returned to native!\nWallet ready:${wallet.address}`);
                     }
-                })
+                }
             } else {
-                walletsAndReturnsNew.push(`${wallet.address}:${1}`);
+                walletsAndReturns.push([wallet.address, '1']);
             }
-        } else if (backingRes == 3) {
-                walletsAndReturnsNew.push(`${wallet.address}:allDone`);
-                console.log('All token returned to native!\nWallet ready!');
+        } else if (backingRes === 3) {
+            if (existingPairIndex !== -1) {
+                walletsAndReturns[existingPairIndex][1] = 'allDone';
+            } else {
+                walletsAndReturns.push([wallet.address, 'allDone']);
+            }
+            console.log('All token returned to native!\nWallet ready!');
         }
     }
+
+    // 5. Synchronization with the file after the cycle is completed
+    const finalPairs = walletsAndReturns.map(pair => pair.join(':')).join('\n');
+    const finalEnvContent = `# Auto-updated ready wallets\nREADY_WALLETS="\n${finalPairs}\n"`;
+    fs.writeFileSync(readyWalletsEnvPath, finalEnvContent);
 }
 
 backAllTokenToNative();
