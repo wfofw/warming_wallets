@@ -1,8 +1,61 @@
-1. Move to folder **auxiliaryFiles**  
-2. Create new txt file and name it **walletsForWork**
-3. !WARNIGN | Make sure that the file is read as a Text File and at the same time does not have **.txt** in its name
-  
-*Great! Now u can push your private keys to that file*  
-1 line = 1 private key  
-  
-After you add private keys, you need to start **start.bat** and code will begin to work!
+# 🔥 warming_wallets
+
+warming_wallets is an EVM automation tool for preparing and managing multiple wallets through blockchain transactions.
+
+The project allows users to automate wallet activity, send transactions across supported networks, and interact with smart contracts using `ethers.js`.
+
+Built for Web3 automation workflows and testing environments.
+
+⚠️ Never commit real private keys or sensitive data to the repository. Use test wallets only.
+
+## ⚙️ Installation
+
+Clone repository:
+
+```bash
+git clone https://github.com/wfofw/warming_wallets.git
+cd warming_wallets
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Before running the script, prepare wallet data in:
+
+[`auxiliaryFiles/walletsForWork.env.example`](./auxiliaryFiles/walletsForWork.env.example)
+```env
+PRIVATE_KEY="first_key
+second_key
+third_key
+"
+```
+
+*Each private key must be written on a new line.*
+
+Configure environment variables in:
+
+[`data.env`](./data.env)
+```env
+polygon=https://polygon-rpc.com
+avalanche=https://1rpc.io/avax/c
+blast=https://rpc.ankr.com/blast
+optimism=https://1rpc.io/op
+```
+
+*You can use public RPC endpoints or provide your own private nodes for better reliability*
+
+Select RPC endpoints that will be used during the warming process:
+
+```env
+allRpc=blast,polygon
+```
+*Only RPC keys listed here will be used during execution*
+
+## 🚀Start:
+
+```bash
+node startFile.mjs
+```
