@@ -1,4 +1,5 @@
 node_modules
-auxiliaryFiles/readyWallets.txt
-auxiliaryFiles/error.log
+auxiliaryFiles/walletsForWork.env
 auxiliaryFiles/walletsStatus.txt
+auxiliaryFiles/readyWallets.env
+auxiliaryFiles/error.log
