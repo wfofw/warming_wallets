@@ -1,4 +1,4 @@
-# 🔥 warming_wallets
+## 🔥 warming_wallets
 
 warming_wallets is an EVM automation tool for preparing and managing multiple wallets through blockchain transactions.
 
